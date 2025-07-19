@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # CORS settings
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001"]
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "https://hygienelinkfe-production.up.railway.app"]
     ALLOWED_HOSTS: List[str] = ["*"]
     
     # Cardano blockchain settings

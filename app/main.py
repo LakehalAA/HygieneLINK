@@ -8,7 +8,18 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.database import engine
-from app.api.v1 import dashboard, forecasting, inventory, compliance
+from app.api.v1 import (
+    dashboard,
+    forecasting,
+    inventory,
+    compliance,
+    auth_router,
+    facilities_router,
+    hygiene_products_router,
+    inventory_router,
+    suppliers_router,
+    users_router
+)
 
 # Lifespan context manager for startup/shutdown
 @asynccontextmanager
@@ -65,6 +76,12 @@ app.add_middleware(
 
 # Include routers
 app.include_router(
+    auth_router.router,
+    prefix="/api/v1/auth",
+    tags=["Auth"]
+)
+
+app.include_router(
     dashboard.router,
     prefix="/api/v1/dashboard",
     tags=["Dashboard"]
@@ -86,6 +103,36 @@ app.include_router(
     compliance.router,
     prefix="/api/v1/compliance",
     tags=["Compliance"]
+)
+
+app.include_router(
+    facilities_router.router,
+    prefix="/api/v1/facilities",
+    tags=["Facilities"]
+)
+
+app.include_router(
+    hygiene_products_router.router,
+    prefix="/api/v1/hygiene-products",
+    tags=["Hygiene Products"]
+)
+
+app.include_router(
+    inventory_router.router,
+    prefix="/api/v1/inventory-management",
+    tags=["Inventory Management"]
+)
+
+app.include_router(
+    suppliers_router.router,
+    prefix="/api/v1/suppliers",
+    tags=["Suppliers"]
+)
+
+app.include_router(
+    users_router.router,
+    prefix="/api/v1/users",
+    tags=["Users"]
 )
 
 # Root endpoints

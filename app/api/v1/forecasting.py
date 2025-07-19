@@ -82,7 +82,7 @@ async def train_model_background(
         # Save model metadata to database
         prediction_model = PredictionModel(
             model_name=f"SARIMAX_{product_id}_{facility_id}",
-            product_category="toilet_paper",
+            product_category="TOILET_PAPER",
             facility_id=facility_id,
             model_parameters=str(model_info['best_params']),
             accuracy_score=model_info['accuracy_score'],

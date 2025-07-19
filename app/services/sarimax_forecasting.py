@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from decimal import Decimal
 from app.models.hygiene_products import ConsumptionData
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from statsmodels.tsa.statespace.mlemodel import MLEResults
@@ -14,14 +15,23 @@ class SarimaxForecastingService:
         self.redis = redis_client
         self.cache_ttl = 3600  # 1 hour cache
     
+    def _convert_decimal_to_float(self, value) -> float:
+        """Convert Decimal or other numeric types to float"""
+        if isinstance(value, Decimal):
+            return float(value)
+        elif value is None:
+            return 0.0
+        else:
+            return float(value)
+    
     def prepare_time_series_data(self, consumption_records: List[ConsumptionData]) -> pd.DataFrame:
-        """Convert consumption records to time series DataFrame"""
+        """Convert consumption records to time series DataFrame with proper type handling"""
         data = []
         for record in consumption_records:
             data.append({
                 'date': record.consumption_date,
-                'quantity': record.quantity_consumed,
-                'employee_count': record.employee_count,
+                'quantity': self._convert_decimal_to_float(record.quantity_consumed),
+                'employee_count': self._convert_decimal_to_float(record.employee_count),
                 'weather': record.weather_condition,
                 'special_events': 1 if bool(record.special_events) else 0
             })
@@ -48,24 +58,24 @@ class SarimaxForecastingService:
         exog = pd.DataFrame(index=df.index)
         
         # Employee count (normalized)
-        employee_mean = df['employee_count'].mean()
-        employee_std = df['employee_count'].std()
+        employee_mean = float(df['employee_count'].mean())
+        employee_std = float(df['employee_count'].std())
         if employee_std > 0:
             exog['employee_count_norm'] = (df['employee_count'] - employee_mean) / employee_std
         else:
-            exog['employee_count_norm'] = 0
+            exog['employee_count_norm'] = 0.0
         
         # Special events indicator
-        exog['special_events'] = df['special_events']
+        exog['special_events'] = df['special_events'].astype(float)
         
         # Day of week effects
         weekday_series = df.index.to_series().dt.dayofweek
-        exog['monday'] = (weekday_series == 0).astype(int)
-        exog['friday'] = (weekday_series == 4).astype(int)
+        exog['monday'] = (weekday_series == 0).astype(float)
+        exog['friday'] = (weekday_series == 4).astype(float)
         
         # Seasonal indicators
         month_series = df.index.to_series().dt.month
-        exog['flu_season'] = ((month_series >= 11) | (month_series <= 3)).astype(int)
+        exog['flu_season'] = ((month_series >= 11) | (month_series <= 3)).astype(float)
         
         return exog
     
@@ -311,7 +321,7 @@ class SarimaxForecastingService:
                     
                     # Create simple confidence intervals
                     residuals = fitted_model.resid
-                    forecast_std = np.std(residuals) if len(residuals) > 0 else np.std(df['quantity']) * 0.15
+                    forecast_std = float(np.std(residuals)) if len(residuals) > 0 else float(np.std(df['quantity'])) * 0.15
                     
                     lower_bound = forecast_result - 1.96 * forecast_std
                     upper_bound = forecast_result + 1.96 * forecast_std
@@ -325,21 +335,21 @@ class SarimaxForecastingService:
                 except Exception as e2:
                     raise ValueError(f"All forecast methods failed. Original error: {str(e)}. Fallback error: {str(e2)}")
             
-            # Convert to numpy arrays
+            # Convert to numpy arrays and ensure float types
             if hasattr(forecast_result, 'values'):
-                predicted_consumption = forecast_result.values
+                predicted_consumption = forecast_result.values.astype(float)
             else:
-                predicted_consumption = np.array(forecast_result)
+                predicted_consumption = np.array(forecast_result, dtype=float)
             
             if hasattr(forecast_ci, 'values'):
-                ci_values = forecast_ci.values
+                ci_values = forecast_ci.values.astype(float)
             else:
-                ci_values = np.array(forecast_ci)
+                ci_values = np.array(forecast_ci, dtype=float)
             
             # Ensure no negative consumption
-            predicted_consumption = np.maximum(predicted_consumption, 0)
-            lower_bound = np.maximum(ci_values[:, 0], 0)
-            upper_bound = np.maximum(ci_values[:, 1], 0)
+            predicted_consumption = np.maximum(predicted_consumption, 0.0)
+            lower_bound = np.maximum(ci_values[:, 0], 0.0)
+            upper_bound = np.maximum(ci_values[:, 1], 0.0)
             
             # Calculate depletion date
             depletion_date = self._calculate_depletion_date(
@@ -390,28 +400,28 @@ class SarimaxForecastingService:
         future_exog = pd.DataFrame(index=forecast_dates)
         
         # Use recent average employee count for future predictions
-        recent_employee_count = historical_df['employee_count'].tail(30).mean()
+        recent_employee_count = float(historical_df['employee_count'].tail(30).mean())
         
         # Normalize using same parameters as training data
-        employee_mean = historical_df['employee_count'].mean()
-        employee_std = historical_df['employee_count'].std()
+        employee_mean = float(historical_df['employee_count'].mean())
+        employee_std = float(historical_df['employee_count'].std())
         
         if employee_std > 0:
             future_exog['employee_count_norm'] = (recent_employee_count - employee_mean) / employee_std
         else:
-            future_exog['employee_count_norm'] = 0
+            future_exog['employee_count_norm'] = 0.0
         
         # Assume no special events in future (conservative approach)
-        future_exog['special_events'] = 0
+        future_exog['special_events'] = 0.0
         
         # Day of week effects
         weekday_series = forecast_dates.to_series().dt.dayofweek
-        future_exog['monday'] = (weekday_series == 0).astype(int)
-        future_exog['friday'] = (weekday_series == 4).astype(int)
+        future_exog['monday'] = (weekday_series == 0).astype(float)
+        future_exog['friday'] = (weekday_series == 4).astype(float)
         
         # Seasonal indicators
         month_series = forecast_dates.to_series().dt.month
-        future_exog['flu_season'] = ((month_series >= 11) | (month_series <= 3)).astype(int)
+        future_exog['flu_season'] = ((month_series >= 11) | (month_series <= 3)).astype(float)
         
         return future_exog
     

@@ -2,6 +2,7 @@ from typing import Dict, List
 import pandas as pd
 from datetime import datetime, timedelta
 import numpy as np
+from decimal import Decimal
 
 from app.models.hygiene_products import ConsumptionData
 from app.services.sarimax_forecasting import SarimaxForecastingService
@@ -55,15 +56,44 @@ class InventoryOptimizationService:
             return float(value)
 
     def generate_sustainability_metrics(self, consumption_data: List[ConsumptionData]) -> Dict:
-        """Calculate sustainability KPIs"""
+        """Calculate sustainability KPIs with proper Decimal handling"""
         
-        total_consumption = sum([record.quantity_consumed for record in consumption_data]) if consumption_data else 0
-        total_employees = sum([record.employee_count for record in consumption_data]) / len(consumption_data) if consumption_data else 0
+        if not consumption_data:
+            return {
+                'total_consumption': 0.0,
+                'consumption_per_employee': 0.0,
+                'waste_reduction_opportunity': 0.0,
+                'potential_savings_percentage': 15.0,
+                'carbon_footprint_kg': 0.0,
+                'sustainability_score': 78.5,
+                'calculation_date': datetime.now().isoformat()
+            }
+        
+        # Convert Decimal fields to float for calculations
+        total_consumption = 0.0
+        total_employee_count = 0.0
+        
+        for record in consumption_data:
+            # Handle quantity_consumed (could be Decimal)
+            if isinstance(record.quantity_consumed, Decimal):
+                total_consumption += float(record.quantity_consumed)
+            else:
+                total_consumption += float(str(record.quantity_consumed) or 0)
+            
+            # Handle employee_count (could be Decimal)
+            if isinstance(record.employee_count, Decimal):
+                total_employee_count += float(record.employee_count)
+            else:
+                total_employee_count += float(str(record.employee_count) or 0)
+        
+        # Calculate average employee count
+        avg_employees = total_employee_count / len(consumption_data) if consumption_data else 0.0
         
         # Consumption per employee (efficiency metric)
-        consumption_per_employee = total_consumption / total_employees if bool(total_employees > 0) else 0
+        consumption_per_employee = total_consumption / avg_employees if avg_employees > 0 else 0.0
         
         # Waste reduction opportunity (mock calculation)
+        # Use float arithmetic throughout
         predicted_optimal = total_consumption * 0.85  # 15% reduction potential
         waste_reduction_opportunity = total_consumption - predicted_optimal
         
@@ -72,11 +102,11 @@ class InventoryOptimizationService:
         total_carbon_footprint = total_consumption * carbon_per_unit
         
         return {
-            'total_consumption': round(self._extract_scalar(total_consumption), 2),
-            'consumption_per_employee': round(self._extract_scalar(consumption_per_employee), 2),
-            'waste_reduction_opportunity': round(self._extract_scalar(waste_reduction_opportunity), 2),
+            'total_consumption': round(total_consumption, 2),
+            'consumption_per_employee': round(consumption_per_employee, 2),
+            'waste_reduction_opportunity': round(waste_reduction_opportunity, 2),
             'potential_savings_percentage': 15.0,
-            'carbon_footprint_kg': round(self._extract_scalar(total_carbon_footprint), 2),
+            'carbon_footprint_kg': round(total_carbon_footprint, 2),
             'sustainability_score': 78.5,
             'calculation_date': datetime.now().isoformat()
         }

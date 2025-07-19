@@ -12,7 +12,7 @@ from app.schemas.dashboard import (
     AIInsight,
     SustainabilityMetrics
 )
-from app.api.dependencies import get_current_facility_id
+from app.dependencies import get_current_facility_id
 
 router = APIRouter()
 

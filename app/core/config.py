@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     ALLOWED_HOSTS: List[str] = ["*"]
     
     # Cardano blockchain settings
-    CARDANO_NETWORK: str = "testnet"
+    CARDANO_NETWORK: str = "preprod"
     BLOCKFROST_API_KEY: str = ""
     
     # External APIs
